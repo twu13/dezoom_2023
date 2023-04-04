@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: staging
+    database: dtc-de-course-375205
+    schema: dezoomproj
+
+    tables:
+      - name: payments_2019
+      - name: payments_2020
+      - name: payments_2021
