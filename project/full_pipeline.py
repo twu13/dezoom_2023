@@ -86,7 +86,7 @@ def etl_gcs_to_bq(year: int) -> None:
 @flow
 def trigger_dbt_flow() -> str:
     result = DbtCoreOperation(
-        commands=["dbt run"],
+        commands=["dbt run --var 'is_test_run: false'"],
         project_dir="/Users/tonywu/github/dezoom_2023/project/dbt/",
         profiles_dir="/Users/tonywu/github/dezoom_2023/project/dbt/",
     ).run()
