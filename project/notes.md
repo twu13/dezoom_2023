@@ -8,6 +8,9 @@ configure Prefect to communicate with the server:
     `prefect cloud login`
     `prefect cloud workspace set --workspace "tonyhaowugmailcom/zoomde"`
     set PREFECT_API_URL to NULL to enable ephemeral api
+create bq and gc resources using terraform
+dbt
+    setup profile locally
 
 
 
@@ -38,3 +41,8 @@ Dashboard
 Reproducibility
 4 points: Instructions are clear, it's easy to run the code, and the code works
 -   `fully repro`
+
+
+d6b22ef130bc7ff291a9a05bec9b61e39f73b4be
+42611
+265314

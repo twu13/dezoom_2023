@@ -1,0 +1,10 @@
+default:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: dtc-de-course-375205
+      dataset: dezoomproj
+      threads: 1
+      keyfile: /Users/tonywu/Downloads/dtc-de-course-375205-f9f4c07d3b0b.json

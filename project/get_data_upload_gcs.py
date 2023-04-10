@@ -4,6 +4,7 @@ from prefect import flow, task
 from prefect_gcp.cloud_storage import GcsBucket
 from prefect_gcp import GcpCredentials
 from prefect_gcp.bigquery import bigquery_create_table
+from prefect_dbt.cli.commands import DbtCoreOperation
 from google.cloud import bigquery
 import os
 
@@ -82,11 +83,22 @@ def etl_gcs_to_bq(year: int) -> None:
     return result
 
 
+@flow
+def trigger_dbt_flow() -> str:
+    result = DbtCoreOperation(
+        commands=["dbt run"],
+        project_dir="/Users/tonywu/github/dezoom_2023/project/dbt/",
+        profiles_dir="/Users/tonywu/github/dezoom_2023/project/dbt/",
+    ).run()
+    return result
+
+
 @flow()
 def etl_parent_flow(years: list[int] = 2021):
     for year in years:  # download payments data for each year
-        etl_web_to_gcs(year) # write payments data as chunked parquet files to GCS
-        etl_gcs_to_bq(year) # create an external table per year in BQ
+        etl_web_to_gcs(year)  # write payments data as chunked parquet files to GCS
+        etl_gcs_to_bq(year)  # create an external table per year in BQ
+        trigger_dbt_flow()  # run dbt jobs to create analytic tables
 
 
 if __name__ == "__main__":
