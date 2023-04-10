@@ -90,5 +90,5 @@ def etl_parent_flow(years: list[int] = 2021):
 
 
 if __name__ == "__main__":
-    year = [2019, 2020, 2021]
+    year = [2020]
     etl_parent_flow(year)
