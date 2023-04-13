@@ -18,7 +18,9 @@ select
     product_category_or_therapeutic_area_5,
     dispute_status_for_publication,
     physician_ownership_indicator,
-    indicate_drug_or_biological_or_device_or_medical_supply_1
+    indicate_drug_or_biological_or_device_or_medical_supply_1,
+    recipient_state,
+    covered_recipient_specialty_1
 from {{ source("staging", "payments_2020") }}
 
 -- dbt build --m <model.sql> --var 'is_test_run: false'

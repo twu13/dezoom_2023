@@ -2,7 +2,7 @@
 
 with pay_data as (select * from {{ ref("fct_payments") }})
 select
-    applicable_manufacturer_or_applicable_gpo_making_payment_name as mfc_gpo,
+    nature_of_payment_or_transfer_of_value as pay_nat,
     extract(year from date_of_payment) as pay_year,
     extract(month from date_of_payment) as pay_month,
     recipient_state,
