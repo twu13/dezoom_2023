@@ -18,7 +18,7 @@ date_parser = lambda x: pd.to_datetime(x, format="%m/%d/%Y")
 
 @task(retries=3)
 def fetch(dataset_url: str, dataset_file: str, year: int) -> Path:
-    """Read payments data from web, break into monthly datasets, and save into data/payments/"""
+    """Read payments data from the web, break it into chunks of 1M rows, and save them data/payments/"""
     path_to_download = Path(f"data/payments/{dataset_file}.csv")
     if not os.path.exists(path_to_download):
         os.system(f"wget {dataset_url} -P data/payments/")
@@ -50,7 +50,7 @@ def fetch(dataset_url: str, dataset_file: str, year: int) -> Path:
 
 @task()
 def write_gcs(file_path: Path) -> None:
-    """Upload local parquet file to GCS"""
+    """Upload local parquet files to GCS"""
     gcs_block = GcsBucket.load("zoom-gcs")
     gcs_block.upload_from_path(from_path=file_path, to_path=file_path)
     return
@@ -58,7 +58,7 @@ def write_gcs(file_path: Path) -> None:
 
 @flow()
 def etl_web_to_gcs(year: int) -> None:
-    """The main ETL function for pulling data from web and writing to GCS"""
+    """The main ETL function for pulling data from the web and writing to GCS"""
     dataset_file = f"OP_DTL_GNRL_PGYR{year}_P01202023"
     dataset_url = f"https://download.cms.gov/openpayments/PGYR{str(year)[-2:]}_P012023/OP_DTL_GNRL_PGYR{year}_P01202023.csv"
     file_paths = fetch(dataset_url, dataset_file, year)
@@ -93,14 +93,46 @@ def trigger_dbt_flow() -> str:
     return result
 
 
+@flow
+def etl_bq_to_gcs_csv(datasets: list[str]) -> None:
+    """The main ETL function for writing the analytic tables back to GCS as CSV files"""
+    client = bigquery.Client()
+    bucket_name = "prefect_02"
+    project = "dtc-de-course-375205"
+    dataset_id = "dezoomproj"
+
+    for dataset in datasets:
+        table_id = dataset
+
+        destination_uri = f"gs://prefect_02/data/payments/{table_id}.csv"
+        dataset_ref = bigquery.DatasetReference(project, dataset_id)
+        table_ref = dataset_ref.table(table_id)
+
+        extract_job = client.extract_table(
+            table_ref,
+            destination_uri,
+            # Location must match that of the source table.
+            location="US",
+        )  # API request
+        extract_job.result()  # Waits for job to complete.
+
+        print(
+            "Exported {}:{}.{} to {}".format(project, dataset_id, table_id, destination_uri)
+        )
+
+
 @flow()
 def etl_parent_flow(years: list[int] = 2021):
     for year in years:  # download payments data for each year
         etl_web_to_gcs(year)  # write payments data as chunked parquet files to GCS
         etl_gcs_to_bq(year)  # create an external table per year in BQ
         trigger_dbt_flow()  # run dbt jobs to create analytic tables
+        etl_bq_to_gcs_csv(["agg_mfc_gpo_monthly",
+                           "agg_nature_pay_monthly",
+                           "agg_phys_monthly",
+                           "agg_state_monthly"])  # write csv file back to GCS
 
 
 if __name__ == "__main__":
-    year = [2020]
-    etl_parent_flow(year)
+    years = [2019, 2020, 2021]
+    etl_parent_flow(years)

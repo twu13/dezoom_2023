@@ -1,0 +1,14 @@
+name: cms_payments
+title: cms_payments
+username:
+account: twu13
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8827551
+bundleId: 7083155
+url: https://twu13.shinyapps.io/cms_payments/
+when: 1681360677.09075
+lastSyncTime: 1681360677.09076
+asMultiple: TRUE
+asStatic: FALSE
+ignoredFiles: dashboard.Rmd

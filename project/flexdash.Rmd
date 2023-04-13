@@ -1,0 +1,239 @@
+---
+title: "CMS Payments Dashboard (2019-2021)"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: flatly
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE,
+  tidy = FALSE, results = "asis"
+)
+library(DT)
+library(googleCloudStorageR)
+library(plotly)
+library(scales)
+library(shiny)
+library(shinydashboard)
+library(shinyWidgets)
+library(tidyverse)
+googleCloudStorageR::gcs_auth(json_file = "dtc-de-course-375205-f9f4c07d3b0b.json")
+data_mfc <- googleCloudStorageR::gcs_get_object("gs://prefect_02/data/payments/agg_mfc_gpo_monthly.csv") %>%
+  rawToChar() %>%
+  readr::read_csv()
+data_nature <- googleCloudStorageR::gcs_get_object("gs://prefect_02/data/payments/agg_nature_pay_monthly.csv") %>%
+  rawToChar() %>%
+  readr::read_csv()
+data_phys <- googleCloudStorageR::gcs_get_object("gs://prefect_02/data/payments/agg_phys_monthly.csv") %>%
+  rawToChar() %>%
+  readr::read_csv()
+data_state <- googleCloudStorageR::gcs_get_object("gs://prefect_02/data/payments/agg_state_monthly.csv") %>%
+  rawToChar() %>%
+  readr::read_csv()
+
+# Helper functions
+gen_top10 <- function(df, selected_dates) {
+  return(df %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= selected_dates[1],
+      date <= selected_dates[2]
+    ) %>%
+    dplyr::group_by_at(1) %>%
+    dplyr::summarise(
+      total_amount = sum(total_pay_usd),
+      total_payments = sum(total_payments),
+      avg_amount_payment = total_amount / total_payments
+    ) %>%
+    dplyr::arrange(desc(total_amount)) %>%
+    dplyr::slice(1:10) %>%
+    dplyr::mutate(
+      total_amount = scales::dollar(total_amount),
+      total_payments = scales::comma(total_payments),
+      avg_amount_payment = scales::dollar(avg_amount_payment)
+    ) %>%
+    dplyr::rename(
+      `Total Amount (USD)` = total_amount,
+      `Total Payments` = total_payments,
+      `Average Amount per Payment (USD)` = avg_amount_payment
+    ))
+}
+
+gen_dt <- function(df) {
+  return(DT::datatable(df,
+    options = list(
+      dom = "t",
+      paging = FALSE, ## paginate the output
+      pageLength = 15, ## number of rows to output for each page
+      columnDefs = list(list(targets = "_all", className = "dt-center"))
+    ),
+    rownames = FALSE ## don't show row numbers/names
+  ))
+}
+
+# Generate state mapper
+additional_states <- setNames(
+  list(
+    "AA",
+    "AE",
+    "AP",
+    "DC",
+    "GU",
+    "MP",
+    "PR",
+    "VI",
+    "nan",
+    "AS"
+  ),
+  c(
+    "Armed Forces America",
+    "Armed Forces Europe",
+    "Armed Forces Pacific",
+    "District of Columbia",
+    "Guam",
+    "Northern Mariana Islands",
+    "Puerto Rico",
+    "Virgin Islands",
+    "Unknown",
+    "American Samoa"
+  )
+)
+all_states <- c(setNames(as.list(state.abb), state.name), additional_states)
+```
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+Summarize reported CMS Payments between reporting entities (e.g. drug and medical device companies) and covered recipients (e.g. physicians):
+
+```{r}
+shinyWidgets::pickerInput("select_state", "Select recipient state(s):",
+  choices = all_states,
+  selected = c(
+    state.abb,
+    "AA",
+    "AE",
+    "AP",
+    "DC",
+    "GU",
+    "MP",
+    "PR",
+    "VI",
+    "nan",
+    "AS"
+  ),
+  options = list(`actions-box` = TRUE),
+  multiple = TRUE
+)
+
+shinyWidgets::airMonthpickerInput("select_date", "Include payments between:",
+  value = c("2019-01", "2021-12"),
+  range = TRUE,
+  dateFormat = "yyyy-MM",
+  startView = "2019-01",
+  min = "2019-01",
+  max = "2021-12"
+)
+```
+
+Row {data-height=250}
+-------------------------------------
+    
+### Geographic Distribution of Payments
+
+```{r}
+plotly::renderPlotly({
+  st_pay <- data_state %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= input$select_date[1],
+      date <= input$select_date[2]
+    ) %>%
+    dplyr::filter(recipient_state %in% input$select_state) %>%
+    dplyr::mutate(
+      state_code = recipient_state,
+      state_name = names(all_states)[match(state_code, as.vector(all_states))]
+    ) %>%
+    dplyr::group_by(
+      state_code,
+      state_name
+    ) %>%
+    dplyr::summarise(
+      total_amount = sum(total_pay_usd),
+      total_payments = sum(total_payments)
+    ) %>%
+    dplyr::mutate(hover = paste(
+      "State: ", state_name, "<br>",
+      "Total Amount Paid: ", scales::dollar(total_amount),
+      "Total Payments: ", total_payments
+    ))
+  g1 <- list(
+    scope = "usa",
+    projection = list(type = "albers usa"),
+    showlakes = TRUE,
+    lakecolor = plotly::toRGB("white")
+  )
+  p <- st_pay %>%
+    plotly::plot_geo() %>%
+    plotly::add_trace(
+      locationmode = "USA-states",
+      locations = ~state_code,
+      z = ~total_amount,
+      text = ~hover,
+      color = ~total_amount,
+      colors = "Blues"
+    ) %>%
+    plotly::hide_colorbar() %>%
+    plotly::layout(
+      geo = g1
+    )
+  return(p)
+})
+```
+
+### This box1
+
+```{r}
+```
+
+Row {.tabset}
+-------------------------------------
+    
+### Top 10 Payment Categories by Spend
+    
+```{r}
+DT::renderDataTable({
+  temp_dt <- data_nature %>%
+    dplyr::filter(recipient_state %in% input$select_state) %>%
+    gen_top10(selected_dates = input$select_date) %>%
+    dplyr::rename(`Payment Categories` = pay_nat)
+  gen_dt(temp_dt)
+})
+```
+    
+### Top 10 Physician Specialties by Spend
+
+```{r}
+DT::renderDataTable({
+  temp_dt <- data_phys %>%
+    dplyr::filter(recipient_state %in% input$select_state) %>%
+    gen_top10(selected_dates = input$select_date) %>%
+    dplyr::rename(`Physician Specialty` = phys_spec)
+  gen_dt(temp_dt)
+})
+```
+
+### Top 10 Manufacturers by Spend
+
+```{r}
+DT::renderDataTable({
+  temp_dt <- data_mfc %>%
+    dplyr::filter(recipient_state %in% input$select_state) %>%
+    gen_top10(selected_dates = input$select_date) %>%
+    dplyr::rename(`Manufacturer or GPO` = mfc_gpo)
+  gen_dt(temp_dt)
+})
+```
