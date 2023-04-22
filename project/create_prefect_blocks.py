@@ -1,22 +1,24 @@
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.cloud_storage import GcsBucket
-from prefect_dbt.cli import BigQueryTargetConfigs, DbtCliProfile, DbtCliProfile, DbtCoreOperation
-
-your_GCS_bucket_name = ""    # (1) insert your GCS bucket name
-gcs_credentials_block_name = "zoom-gcs"
+from prefect_dbt.cli import (
+    BigQueryTargetConfigs,
+    DbtCliProfile,
+    DbtCliProfile,
+    DbtCoreOperation,
+)
 
 credentials_block = GcpCredentials(
-    service_account_info={}  # (2) enter your credentials info here
+    service_account_info={}  # enter your credentials from the json file
 )
+credentials_block.save("zoom-gcp-creds", overwrite=True)
 
-credentials_block.save(f"{gcs_credentials_block_name}", overwrite=True)
 
 bucket_block = GcsBucket(
-    gcp_credentials=GcpCredentials.load(f"{gcs_credentials_block_name}"),
-    bucket=f"{your_GCS_bucket_name}",
+    gcp_credentials=GcpCredentials.load("zoom-gcp-creds"),
+    bucket="prefect-de-zoomcamp",  # insert your  GCS bucket name
 )
 
-bucket_block.save(f"{gcs_credentials_block_name}-bucket", overwrite=True)
+bucket_block.save("zoom-gcs", overwrite=True)
 
 credentials = GcpCredentials.load("zoom-gcp-creds")
 target_configs = BigQueryTargetConfigs(
@@ -26,7 +28,7 @@ target_configs = BigQueryTargetConfigs(
 target_configs.save("cms-payments-target-config", overwrite=True)
 
 dbt_cli_profile = DbtCliProfile(
-    name="default", 
+    name="default",
     target="dev",
     target_configs=target_configs,
 )

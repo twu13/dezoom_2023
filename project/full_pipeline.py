@@ -117,7 +117,9 @@ def etl_bq_to_gcs_csv(datasets: list[str]) -> None:
         extract_job.result()  # Waits for job to complete.
 
         print(
-            "Exported {}:{}.{} to {}".format(project, dataset_id, table_id, destination_uri)
+            "Exported {}:{}.{} to {}".format(
+                project, dataset_id, table_id, destination_uri
+            )
         )
 
 
@@ -127,10 +129,14 @@ def etl_parent_flow(years: list[int] = 2021):
         etl_web_to_gcs(year)  # write payments data as chunked parquet files to GCS
         etl_gcs_to_bq(year)  # create an external table per year in BQ
         trigger_dbt_flow()  # run dbt jobs to create analytic tables
-        etl_bq_to_gcs_csv(["agg_mfc_gpo_monthly",
-                           "agg_nature_pay_monthly",
-                           "agg_phys_monthly",
-                           "agg_state_monthly"])  # write csv file back to GCS
+        etl_bq_to_gcs_csv(
+            [
+                "agg_mfc_gpo_monthly",
+                "agg_nature_pay_monthly",
+                "agg_phys_monthly",
+                "agg_state_monthly",
+            ]
+        )  # write csv file back to GCS
 
 
 if __name__ == "__main__":
