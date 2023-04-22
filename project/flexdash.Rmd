@@ -194,9 +194,67 @@ plotly::renderPlotly({
 })
 ```
 
-### This box1
+### Summary Metrics
 
 ```{r}
+DT::renderDataTable({
+  temp_state <- data_state %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= input$select_date[1],
+      date <= input$select_date[2]
+    ) %>%
+    dplyr::filter(recipient_state %in% input$select_state)
+  temp_mfc <- data_mfc %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= input$select_date[1],
+      date <= input$select_date[2]
+    ) %>%
+    dplyr::filter(recipient_state %in% input$select_state)
+  temp_nature <- data_nature %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= input$select_date[1],
+      date <= input$select_date[2]
+    ) %>%
+    dplyr::filter(recipient_state %in% input$select_state)
+  temp_phys <- data_phys %>%
+    dplyr::mutate(date = lubridate::ymd(paste0(pay_year, "-", pay_month, "-1"))) %>%
+    dplyr::filter(
+      date >= input$select_date[1],
+      date <= input$select_date[2]
+    ) %>%
+    dplyr::filter(recipient_state %in% input$select_state)
+  final <- temp_state %>%
+    dplyr::summarise(val = scales::comma(sum(total_payments))) %>%
+    dplyr::mutate(met = "Total Payments Made: ") %>%
+    dplyr::bind_rows(temp_state %>%
+      dplyr::summarise(val = scales::dollar(sum(total_pay_usd))) %>%
+      dplyr::mutate(met = "Total Payments in USD: ")) %>%
+    dplyr::bind_rows(temp_mfc %>%
+      dplyr::summarise(val = scales::comma(length(unique(temp_mfc$mfc_gpo)))) %>%
+      dplyr::mutate(met = "Total Manufacturers Making Payments: ")) %>%
+    dplyr::bind_rows(temp_phys %>% dplyr::group_by(recipient_state) %>% dplyr::summarise(total = sum(total_pay_usd)) %>% dplyr::arrange(desc(total)) %>% dplyr::slice(1) %>% dplyr::select(val = recipient_state) %>%
+      dplyr::mutate(met = "State Receiving the Most Money in Physician Payments: ")) %>%
+    dplyr::bind_rows(temp_phys %>% dplyr::group_by(recipient_state) %>% dplyr::summarise(total = sum(total_payments)) %>% dplyr::arrange(desc(total)) %>% dplyr::slice(1) %>% dplyr::select(val = recipient_state) %>%
+      dplyr::mutate(met = "State Receiving the Highest Number of Physician Payments: ")) %>%
+    dplyr::select(met, val)
+  return(DT::datatable(final,
+    options = list(
+      headerCallback = JS(
+        "function(thead, data, start, end, display){",
+        "  $(thead).remove();",
+        "}"
+      ),
+      dom = "t",
+      paging = FALSE, ## paginate the output
+      pageLength = 15, ## number of rows to output for each page
+      columnDefs = list(list(targets = "_all", className = "dt-center"))
+    ),
+    rownames = FALSE ## don't show row numbers/names
+  ))
+})
 ```
 
 Row {.tabset}
