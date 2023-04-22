@@ -41,8 +41,3 @@ Dashboard
 Reproducibility
 4 points: Instructions are clear, it's easy to run the code, and the code works
 -   `fully repro`
-
-
-d6b22ef130bc7ff291a9a05bec9b61e39f73b4be
-42611
-265314
